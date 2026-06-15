@@ -108,6 +108,11 @@ Domain verification is evidence of affiliation, not an automatic ownership trans
 must review the placeholder, the claimant, and any conflicting requests before changing the company
 owner.
 
+If the firm is not on the map, choose **Not listed? Add your firm**. Enter the firm name, official
+website, location, description and a matching work email. After OTP verification, Hirey creates a
+public company page owned by that verified Hi identity. The page is immediate; downstream map
+indexing can be asynchronous.
+
 ## Add to Hirey Hub
 
 This repository includes a [`hirey-app.json`](hirey-app.json) manifest. Tell a Hi agent:

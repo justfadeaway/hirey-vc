@@ -242,6 +242,7 @@ async function startClaim(req, res) {
   sweepClaimSessions();
   const claimId = randomBytes(24).toString('base64url');
   claimSessions.set(claimId, {
+    mode: 'claim',
     flowId: started.data.flow_id,
     email,
     domain,
@@ -254,6 +255,52 @@ async function startClaim(req, res) {
     ok: true,
     claim_id: claimId,
     company_name: company.display_name,
+    domain,
+    expires_in: CLAIM_SESSION_TTL_MS / 1000
+  });
+}
+
+async function startCompanyAdd(req, res) {
+  if (!originOk(req)) return json(res, 403, { error: 'invalid_origin' });
+  if (!rateOk(clientIp(req))) return json(res, 429, { error: 'rate_limited' });
+  const request = await body(req);
+  const displayName = String(request.display_name || '').trim();
+  const websiteUrl = String(request.website_url || '').trim();
+  const locationText = String(request.location_text || '').trim();
+  const summary = String(request.summary || '').trim();
+  const email = String(request.email || '').trim().toLowerCase();
+  const domain = websiteDomain(websiteUrl);
+  const claimantDomain = emailDomain(email);
+  if (!displayName || !domain || !email.includes('@')) {
+    return json(res, 422, { error: 'Enter your firm name, full website URL, and work email.' });
+  }
+  if (PUBLIC_EMAIL_DOMAINS.has(claimantDomain) || claimantDomain !== domain) {
+    return json(res, 422, { error: `Use an email address at @${domain}.` });
+  }
+
+  const started = await authPost('/v1/auth/web/email/start', { email });
+  if (started.status !== 200 || !started.data.flow_id) {
+    return json(res, started.status === 200 ? 400 : started.status, {
+      error: started.data.error || 'Could not send verification code.'
+    });
+  }
+  sweepClaimSessions();
+  const claimId = randomBytes(24).toString('base64url');
+  claimSessions.set(claimId, {
+    mode: 'add',
+    flowId: started.data.flow_id,
+    email,
+    domain,
+    displayName,
+    websiteUrl,
+    locationText,
+    summary,
+    expiresAt: Date.now() + CLAIM_SESSION_TTL_MS
+  });
+  return json(res, 200, {
+    ok: true,
+    claim_id: claimId,
+    company_name: displayName,
     domain,
     expires_in: CLAIM_SESSION_TTL_MS / 1000
   });
@@ -275,6 +322,31 @@ async function verifyClaim(req, res) {
       error: verified.data.error || 'Verification failed.'
     });
   }
+  if (session.mode === 'add') {
+    const created = await callHiWithToken(verified.data.access_token, 'hi.companies', 'create', {
+      display_name: session.displayName,
+      website_url: session.websiteUrl,
+      location_text: session.locationText || undefined,
+      summary: session.summary || undefined,
+      content_markdown: session.summary || undefined,
+      visibility_status: 'public'
+    });
+    if (created.status !== 200) {
+      return json(res, created.status, {
+        error: created.data?.error || created.data?.result?.error || 'Could not add the company.'
+      });
+    }
+    claimSessions.delete(claimId);
+    const company = unwrapCompany(created.data);
+    return json(res, 200, {
+      ok: true,
+      status: 'created',
+      company_name: session.displayName,
+      company_public_url: company?.public_url || company?.company?.public_url || null,
+      verified_domain: session.domain
+    });
+  }
+
   const requested = await callHiWithToken(verified.data.access_token, 'hi.companies', 'request_join', {
     company_id: session.companyId
   });
@@ -352,6 +424,10 @@ const server = createServer(async (req, res) => {
 
     if (url.pathname === '/api/claims/start' && req.method === 'POST') {
       return await startClaim(req, res);
+    }
+
+    if (url.pathname === '/api/claims/add/start' && req.method === 'POST') {
+      return await startCompanyAdd(req, res);
     }
 
     if (url.pathname === '/api/claims/verify' && req.method === 'POST') {

@@ -420,16 +420,31 @@ function viewClaims() {
     <section class="hero">
       <div>
         <div class="eyebrow">Verified VC identity</div>
-        <h1>Claim your firm<br>on the Hirey map.</h1>
-        <p>If your fund or firm already appears as a seeded placeholder on the SF map, verify an email at the exact company website domain and submit an ownership claim for staff review.</p>
+        <h1>Find, claim or add<br>your VC firm.</h1>
+        <p>Search the Hirey map first. If your fund already has a seeded placeholder, claim it with a company-domain email. If it is not listed, add a verified public company page directly.</p>
       </div>
-      <div class="hero-stat"><strong>@</strong><span>Domain verification starts the claim. Ownership transfers only after Hirey staff reviews the placeholder and any conflicts.</span></div>
+      <div class="hero-stat"><strong>@</strong><span>Your work email must exactly match the domain on the firm website. Public mailbox addresses are not accepted.</span></div>
     </section>
-    <section class="claim-layout">
+    <section class="claim-card find-guide">
+      <div class="section-head">
+        <div><div class="eyebrow">How to find your firm</div><h2>Start on the SF map</h2></div>
+        <a class="btn btn-acid btn-small" href="https://hirey.ai/#sf-map" target="_blank" rel="noopener">Open the SF map</a>
+      </div>
+      <div class="find-steps">
+        <div><span>1</span><strong>Search your firm</strong><p>Open the map and search the fund or firm name.</p></div>
+        <div><span>2</span><strong>Open the entity</strong><p>Select the matching company or partner card.</p></div>
+        <div><span>3</span><strong>Copy the company link</strong><p>Use the <code>hi.hirey.ai/company/...</code> URL below.</p></div>
+      </div>
+    </section>
+    <div class="claim-choice" role="tablist">
+      <button class="claim-choice-button active" data-claim-mode="claim">Already on the map</button>
+      <button class="claim-choice-button" data-claim-mode="add">Not listed? Add your firm</button>
+    </div>
+    <section class="claim-layout" id="claim-existing-panel">
       <form class="claim-card" id="claim-start-form">
         <div class="claim-step">1</div>
-        <h2>Find the placeholder</h2>
-        <p>Paste its Hirey company URL, for example <code>https://hi.hirey.ai/company/87</code>.</p>
+        <h2>Claim the placeholder</h2>
+        <p>Paste the company URL you found on the map.</p>
         <label>Hirey company URL or public ID</label>
         <input id="claim-company" required placeholder="https://hi.hirey.ai/company/87">
         <label>Work email</label>
@@ -438,14 +453,40 @@ function viewClaims() {
       </form>
       <section class="claim-card claim-policy">
         <div class="claim-step">✓</div>
-        <h2>What gets checked</h2>
+        <h2>Claim review</h2>
         <ul>
-          <li>The company must still be a seeded public-data placeholder.</li>
-          <li>Your email domain must exactly match the company website domain.</li>
-          <li>Public mailbox domains are not accepted.</li>
+          <li>The entity must still be a seeded public-data placeholder.</li>
+          <li>Your email domain must match the placeholder website.</li>
           <li>Hirey staff reviews conflicts before transferring ownership.</li>
         </ul>
-        <a class="btn btn-ghost" href="https://hirey.ai/#sf-map" target="_blank" rel="noopener">Open the SF map</a>
+      </section>
+    </section>
+    <section class="claim-layout" id="claim-add-panel" hidden>
+      <form class="claim-card claim-add-form" id="claim-add-form">
+        <div class="claim-step">1</div>
+        <h2>Add your firm</h2>
+        <p>Create a public Hirey company page. Once indexed, it can appear in company discovery and map experiences.</p>
+        <label>Firm or fund name</label>
+        <input id="add-company-name" required placeholder="Acme Ventures">
+        <label>Official website</label>
+        <input id="add-company-website" required type="url" placeholder="https://acme.vc">
+        <label>Location</label>
+        <input id="add-company-location" placeholder="San Francisco, CA">
+        <label>Short description</label>
+        <textarea id="add-company-summary" maxlength="500" placeholder="What the firm invests in, stage, geography and check size."></textarea>
+        <label>Work email</label>
+        <input id="add-company-email" required type="email" autocomplete="email" placeholder="you@acme.vc">
+        <button class="btn btn-acid" id="claim-add-button">Verify and add firm</button>
+      </form>
+      <section class="claim-card claim-policy">
+        <div class="claim-step">+</div>
+        <h2>How adding works</h2>
+        <ul>
+          <li>We verify the exact website domain through your work email.</li>
+          <li>After verification, you become the company owner and admin.</li>
+          <li>The page is public immediately; map indexing may follow asynchronously.</li>
+          <li>If a company already exists for your Hi identity, use the claim path instead.</li>
+        </ul>
       </section>
     </section>
     <section class="claim-card claim-verify" id="claim-verify-panel" hidden>
@@ -459,6 +500,21 @@ function viewClaims() {
     </section>`;
 
   let activeClaimId = null;
+  let activeMode = 'claim';
+  const switchMode = (mode) => {
+    activeMode = mode;
+    activeClaimId = null;
+    $('#claim-existing-panel').hidden = mode !== 'claim';
+    $('#claim-add-panel').hidden = mode !== 'add';
+    $('#claim-verify-panel').hidden = true;
+    document.querySelectorAll('[data-claim-mode]').forEach((button) => {
+      button.classList.toggle('active', button.dataset.claimMode === mode);
+    });
+  };
+  document.querySelectorAll('[data-claim-mode]').forEach((button) => {
+    button.onclick = () => switchMode(button.dataset.claimMode);
+  });
+
   $('#claim-start-form').onsubmit = async (event) => {
     event.preventDefault();
     const button = $('#claim-start-button');
@@ -470,6 +526,7 @@ function viewClaims() {
         email: $('#claim-email').value
       });
       activeClaimId = result.claim_id;
+      activeMode = 'claim';
       $('#claim-verify-copy').textContent = `We sent a code to ${$('#claim-email').value.trim()}. Verifying it will submit a claim for ${result.company_name} (@${result.domain}).`;
       $('#claim-verify-panel').hidden = false;
       $('#claim-code').focus();
@@ -479,6 +536,33 @@ function viewClaims() {
     } finally {
       button.disabled = false;
       button.textContent = 'Send verification code';
+    }
+  };
+
+  $('#claim-add-form').onsubmit = async (event) => {
+    event.preventDefault();
+    const button = $('#claim-add-button');
+    button.disabled = true;
+    button.textContent = 'Sending code…';
+    try {
+      const result = await postJson('api/claims/add/start', {
+        display_name: $('#add-company-name').value,
+        website_url: $('#add-company-website').value,
+        location_text: $('#add-company-location').value,
+        summary: $('#add-company-summary').value,
+        email: $('#add-company-email').value
+      });
+      activeClaimId = result.claim_id;
+      activeMode = 'add';
+      $('#claim-verify-copy').textContent = `We sent a code to ${$('#add-company-email').value.trim()}. Verify it to create ${result.company_name} as a public company page owned by your Hi identity.`;
+      $('#claim-verify-panel').hidden = false;
+      $('#claim-code').focus();
+      toast('Verification code sent');
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Verify and add firm';
     }
   };
 
@@ -492,12 +576,21 @@ function viewClaims() {
         claim_id: activeClaimId,
         code: $('#claim-code').value
       });
-      $('#claim-verify-panel').innerHTML = `
-        <div class="claim-step">✓</div>
-        <h2>Claim submitted</h2>
-        <p>Your domain was verified and the ownership request for <strong>${esc(result.company_name)}</strong> is now pending Hirey staff review.</p>
-        <a class="btn btn-ghost" href="https://hi.hirey.ai/company/${esc(result.company_public_id)}" target="_blank" rel="noopener">View company page</a>`;
-      toast('Claim submitted for review');
+      if (activeMode === 'add') {
+        $('#claim-verify-panel').innerHTML = `
+          <div class="claim-step">✓</div>
+          <h2>Firm added</h2>
+          <p><strong>${esc(result.company_name)}</strong> now has a public Hirey company page owned by your verified identity. Map indexing may take additional time.</p>
+          ${result.company_public_url ? `<a class="btn btn-ghost" href="${esc(safeUrl(result.company_public_url))}" target="_blank" rel="noopener">View company page</a>` : ''}`;
+        toast('Firm added to Hirey');
+      } else {
+        $('#claim-verify-panel').innerHTML = `
+          <div class="claim-step">✓</div>
+          <h2>Claim submitted</h2>
+          <p>Your domain was verified and the ownership request for <strong>${esc(result.company_name)}</strong> is now pending Hirey staff review.</p>
+          <a class="btn btn-ghost" href="https://hi.hirey.ai/company/${esc(result.company_public_id)}" target="_blank" rel="noopener">View company page</a>`;
+        toast('Claim submitted for review');
+      }
     } catch (error) {
       toast(error.message);
       button.disabled = false;

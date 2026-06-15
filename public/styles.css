@@ -123,6 +123,7 @@ h1 { font-size: clamp(42px, 6vw, 76px); line-height: .98; letter-spacing: -.065e
 .company-card p { color: var(--muted); line-height: 1.5; flex: 1; font-size: 13px; }
 
 .claim-layout { display: grid; grid-template-columns: 1.15fr .85fr; gap: 14px; }
+.claim-layout[hidden] { display: none; }
 .claim-card {
   background: var(--panel); border: 1px solid var(--line); border-radius: 20px;
   padding: 22px; box-shadow: var(--shadow);
@@ -130,11 +131,12 @@ h1 { font-size: clamp(42px, 6vw, 76px); line-height: .98; letter-spacing: -.065e
 .claim-card h2 { margin: 10px 0 6px; letter-spacing: -.04em; }
 .claim-card p, .claim-card li { color: var(--muted); line-height: 1.55; font-size: 13px; }
 .claim-card label { display: block; margin: 14px 0 6px; font-size: 12px; font-weight: 750; }
-.claim-card input {
+.claim-card input, .claim-card textarea {
   width: 100%; border: 1px solid var(--line); background: white; border-radius: 12px;
   padding: 13px 15px; outline: none;
 }
-.claim-card input:focus { border-color: #4d846b; box-shadow: 0 0 0 3px rgba(115,215,176,.2); }
+.claim-card textarea { min-height: 105px; resize: vertical; }
+.claim-card input:focus, .claim-card textarea:focus { border-color: #4d846b; box-shadow: 0 0 0 3px rgba(115,215,176,.2); }
 .claim-card > .btn, .claim-card form > .btn { margin-top: 14px; }
 .claim-step {
   width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%;
@@ -145,6 +147,25 @@ h1 { font-size: clamp(42px, 6vw, 76px); line-height: .98; letter-spacing: -.065e
 .claim-verify { margin-top: 14px; }
 .claim-verify[hidden] { display: none; }
 .claim-card code { color: var(--ink); }
+.find-guide { margin-bottom: 14px; }
+.find-guide .section-head { margin: 0 0 18px; }
+.find-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.find-steps > div { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #f8f8f2; }
+.find-steps span {
+  width: 25px; height: 25px; display: grid; place-items: center; margin-bottom: 10px;
+  border-radius: 50%; background: var(--dark); color: var(--acid); font-size: 11px; font-weight: 850;
+}
+.find-steps strong { display: block; font-size: 14px; }
+.find-steps p { margin-bottom: 0; }
+.claim-choice {
+  display: inline-flex; gap: 5px; padding: 5px; margin: 0 0 14px;
+  border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.55);
+}
+.claim-choice-button {
+  border: 0; border-radius: 10px; padding: 10px 14px; background: transparent;
+  color: var(--muted); font-weight: 750;
+}
+.claim-choice-button.active { background: var(--dark); color: var(--acid); }
 
 .pipeline-board { display: grid; grid-template-columns: repeat(4, minmax(220px,1fr)); gap: 12px; overflow-x: auto; padding-bottom: 10px; }
 .stage { background: rgba(255,255,255,.45); border: 1px dashed #bfc4ba; border-radius: 18px; padding: 12px; min-height: 390px; }
@@ -187,6 +208,7 @@ h1 { font-size: clamp(42px, 6vw, 76px); line-height: .98; letter-spacing: -.065e
   .grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .hero { grid-template-columns: 1fr; }
   .claim-layout { grid-template-columns: 1fr; }
+  .find-steps { grid-template-columns: 1fr; }
   .hero-stat { display: none; }
 }
 @media (max-width: 640px) {
