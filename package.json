@@ -1,6 +1,6 @@
 {
   "name": "hirey-vc",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A live dealflow console for VCs and GPs, powered by the Hirey Hi people graph.",
   "type": "module",
   "bin": {
@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check public/app.js"
+    "watch": "node watcher.mjs",
+    "check": "node --check server.mjs && node --check watcher.mjs && node --check public/app.js"
   },
   "engines": {
     "node": ">=18"
@@ -17,6 +18,8 @@
     "hirey",
     "venture-capital",
     "dealflow",
+    "startup-radar",
+    "alerts",
     "founders",
     "fundraising",
     "investing"

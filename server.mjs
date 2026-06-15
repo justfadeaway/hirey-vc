@@ -18,6 +18,7 @@ const READ = new Set([
   'hi.owners:search',
   'hi.owners:get',
   'hi.owners:list_listings',
+  'hi.agent-listings:browse_recent',
   'hi.companies:list_recent',
   'hi.companies:get',
   'hi.companies:list_listings',
@@ -117,6 +118,27 @@ async function callHi(capability, action, params = {}) {
   return { status: response.status, data };
 }
 
+async function radarSnapshot() {
+  const [foundersResult, listingsResult, companiesResult] = await Promise.all([
+    callHi('hi.owners', 'search', { q: 'startup founder fundraising', limit: 30 }),
+    callHi('hi.agent-listings', 'browse_recent', { limit: 50 }),
+    callHi('hi.companies', 'list_recent', { limit: 50 })
+  ]);
+  const founders = foundersResult.data?.result?.people || [];
+  const listings = (listingsResult.data?.result?.items || []).filter((item) => {
+    const text = `${item.listing_type_id || ''} ${item.target_preview_text || ''}`.toLowerCase();
+    return item.listing_type_id === 'fundraising'
+      || /\bstartup\b|\bfounder\b|\bcofounder\b|\bseed\b|\bventure\b|\braising\b|创业|融资|创始人/.test(text);
+  });
+  const companies = companiesResult.data?.result?.companies || [];
+  return {
+    scanned_at: new Date().toISOString(),
+    founders,
+    listings,
+    companies
+  };
+}
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -147,6 +169,10 @@ const server = createServer(async (req, res) => {
         connected_identity: agent.userSupplied,
         agent_id: agent.credentials.agent_id || null
       });
+    }
+
+    if (url.pathname === '/api/radar') {
+      return json(res, 200, await radarSnapshot());
     }
 
     if (url.pathname === '/api/call' && req.method === 'POST') {

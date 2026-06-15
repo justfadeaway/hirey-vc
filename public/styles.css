@@ -130,6 +130,22 @@ h1 { font-size: clamp(42px, 6vw, 76px); line-height: .98; letter-spacing: -.065e
 .deal p { color: var(--muted); font-size: 12px; line-height: 1.45; margin: 0 0 10px; }
 .deal select { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 7px; background: white; }
 
+.alert-toolbar {
+  display: flex; justify-content: space-between; gap: 12px; align-items: center;
+  background: var(--dark); color: white; border-radius: 18px; padding: 16px 18px; margin-bottom: 18px;
+}
+.alert-toolbar p { margin: 4px 0 0; color: #b7c6bf; font-size: 12px; }
+.alert-stream { display: grid; gap: 10px; }
+.alert-card {
+  display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 15px;
+}
+.alert-card.unread { border-color: #6aaa8e; box-shadow: inset 4px 0 0 var(--mint); }
+.alert-kind { font-size: 10px; text-transform: uppercase; letter-spacing: .11em; color: #426d5a; font-weight: 850; }
+.alert-card strong { display: block; margin-bottom: 4px; }
+.alert-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.alert-time { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
 .modal-layer { position: fixed; inset: 0; z-index: 50; background: rgba(4,14,9,.65); display: grid; place-items: center; padding: 20px; }
 .modal-layer[hidden] { display: none; }
 .modal { width: min(650px, 100%); max-height: 86vh; overflow: auto; background: var(--panel); border-radius: 22px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
@@ -157,4 +173,5 @@ h1 { font-size: clamp(42px, 6vw, 76px); line-height: .98; letter-spacing: -.065e
   .grid { grid-template-columns: 1fr; }
   .search-row { flex-direction: column; }
   h1 { font-size: 46px; }
+  .alert-card { grid-template-columns: 1fr; gap: 7px; }
 }

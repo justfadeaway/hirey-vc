@@ -11,6 +11,9 @@ const stages = ['Sourced', 'Meeting', 'Diligence', 'IC'];
 let connectedIdentity = false;
 let currentResults = { people: [], listings: [] };
 let pipeline = JSON.parse(localStorage.getItem('hirey-vc-pipeline') || '[]');
+let radarState = JSON.parse(localStorage.getItem('hirey-vc-radar') || 'null');
+let alerts = JSON.parse(localStorage.getItem('hirey-vc-alerts') || '[]');
+let radarTimer = null;
 
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -37,6 +40,12 @@ function initials(name) {
 function savePipeline() {
   localStorage.setItem('hirey-vc-pipeline', JSON.stringify(pipeline));
   $('#pipeline-count').textContent = pipeline.length;
+}
+
+function saveAlerts() {
+  alerts = alerts.slice(0, 200);
+  localStorage.setItem('hirey-vc-alerts', JSON.stringify(alerts));
+  $('#alert-count').textContent = alerts.filter((item) => !item.read).length;
 }
 
 function toast(message) {
@@ -69,6 +78,89 @@ async function hi(capability, action, params = {}) {
   const data = await response.json();
   if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
   return data.result || data;
+}
+
+const radarIds = (snapshot) => ({
+  founders: (snapshot.founders || []).map((item) => item.owner_customer_id || item.owner_public_url),
+  listings: (snapshot.listings || []).map((item) => item.listing_id),
+  companies: (snapshot.companies || []).map((item) => item.id)
+});
+
+function pushBrowserNotification(newItems) {
+  if (!newItems.length || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const counts = newItems.reduce((out, item) => {
+    out[item.kind] = (out[item.kind] || 0) + 1;
+    return out;
+  }, {});
+  const parts = [
+    counts.founder && `${counts.founder} founder${counts.founder > 1 ? 's' : ''}`,
+    counts.startup && `${counts.startup} startup${counts.startup > 1 ? 's' : ''}`,
+    counts.signal && `${counts.signal} funding signal${counts.signal > 1 ? 's' : ''}`
+  ].filter(Boolean);
+  new Notification('New Hirey VC dealflow', {
+    body: parts.join(', '),
+    icon: api('icon.svg')
+  });
+}
+
+async function scanRadar({ silent = false } = {}) {
+  try {
+    const snapshot = await fetch(api('api/radar')).then((response) => {
+      if (!response.ok) throw new Error(`Radar HTTP ${response.status}`);
+      return response.json();
+    });
+    const nextIds = radarIds(snapshot);
+    if (radarState) {
+      const discovered = [
+        ...(snapshot.founders || [])
+          .filter((item) => !radarState.founders.includes(item.owner_customer_id || item.owner_public_url))
+          .map((item) => ({
+            id: `founder:${item.owner_customer_id || item.owner_public_url}`,
+            kind: 'founder',
+            name: item.display_name || 'New founder',
+            summary: item.headline || 'New startup founder discovered on Hi',
+            url: item.owner_public_url || '',
+            createdAt: snapshot.scanned_at,
+            read: false
+          })),
+        ...(snapshot.companies || [])
+          .filter((item) => !radarState.companies.includes(item.id))
+          .map((item) => ({
+            id: `startup:${item.id}`,
+            kind: 'startup',
+            name: item.display_name || 'New startup',
+            summary: item.summary || item.location_text || 'New company page on Hi',
+            url: item.public_url || '',
+            createdAt: item.created_at || snapshot.scanned_at,
+            read: false
+          })),
+        ...(snapshot.listings || [])
+          .filter((item) => !radarState.listings.includes(item.listing_id))
+          .map((item) => ({
+            id: `signal:${item.listing_id}`,
+            kind: 'signal',
+            name: item.listing_type_id === 'fundraising' ? 'New fundraising signal' : 'New startup signal',
+            summary: item.target_preview_text || '',
+            url: '',
+            createdAt: item.listing_created_at || snapshot.scanned_at,
+            read: false
+          }))
+      ].filter((item) => !alerts.some((existing) => existing.id === item.id));
+      if (discovered.length) {
+        alerts.unshift(...discovered);
+        saveAlerts();
+        pushBrowserNotification(discovered);
+        if (!silent) toast(`${discovered.length} new dealflow signal${discovered.length > 1 ? 's' : ''}`);
+        if (location.hash.startsWith('#/alerts')) viewAlerts();
+      }
+    }
+    radarState = nextIds;
+    localStorage.setItem('hirey-vc-radar', JSON.stringify(radarState));
+    return snapshot;
+  } catch (error) {
+    if (!silent) toast(`Radar scan failed: ${error.message}`);
+    return null;
+  }
 }
 
 function addToPipeline(item, kind) {
@@ -312,6 +404,46 @@ async function viewCompanies() {
   }
 }
 
+function relativeTime(value) {
+  const seconds = Math.max(1, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+function viewAlerts() {
+  alerts = alerts.map((item) => ({ ...item, read: true }));
+  saveAlerts();
+  app.innerHTML = `
+    <section class="hero"><div><div class="eyebrow">Always-on startup radar</div><h1>New founders,<br>as they emerge.</h1><p>The radar scans Hi for newly discovered founders, company pages and startup or fundraising signals. Keep this page open for browser notifications, or run the background watcher.</p></div></section>
+    <section class="alert-toolbar">
+      <div><strong>Live radar · every 2 minutes</strong><p>First scan creates a baseline; only later additions are alerted.</p></div>
+      <div class="actions">
+        <button class="btn btn-ghost btn-small" id="scan-now">Scan now</button>
+        <button class="btn btn-acid btn-small" id="enable-alerts">${'Notification' in window && Notification.permission === 'granted' ? 'Notifications on' : 'Enable notifications'}</button>
+      </div>
+    </section>
+    <section class="alert-stream">
+      ${alerts.length ? alerts.map((item) => `<article class="alert-card ${item.read ? '' : 'unread'}">
+        <div class="alert-kind">${esc(item.kind === 'signal' ? 'funding signal' : item.kind)}</div>
+        <div><strong>${esc(item.name)}</strong><p>${esc(item.summary)}</p></div>
+        <div class="alert-time">${relativeTime(item.createdAt)}</div>
+      </article>`).join('') : '<div class="empty">Radar baseline is ready. New startups and founders will appear here automatically.</div>'}
+    </section>`;
+  $('#scan-now').onclick = async () => {
+    $('#scan-now').textContent = 'Scanning…';
+    await scanRadar();
+    if ($('#scan-now')) $('#scan-now').textContent = 'Scan now';
+  };
+  $('#enable-alerts').onclick = async () => {
+    if (!('Notification' in window)) return toast('This browser does not support notifications');
+    const permission = await Notification.requestPermission();
+    $('#enable-alerts').textContent = permission === 'granted' ? 'Notifications on' : 'Notifications blocked';
+    if (permission === 'granted') toast('Browser notifications enabled');
+  };
+}
+
 function viewPipeline() {
   const grouped = Object.fromEntries(stages.map((stage) => [stage, pipeline.filter((deal) => deal.stage === stage)]));
   app.innerHTML = `
@@ -349,12 +481,14 @@ function route() {
   const page = location.hash.split('/')[1] || 'dealflow';
   document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('active', link.dataset.route === page));
   if (page === 'companies') return viewCompanies();
+  if (page === 'alerts') return viewAlerts();
   if (page === 'pipeline') return viewPipeline();
   return viewDealflow();
 }
 
 async function bootstrap() {
   savePipeline();
+  saveAlerts();
   try {
     const health = await fetch(api('api/health')).then((response) => response.json());
     connectedIdentity = health.connected_identity;
@@ -364,6 +498,9 @@ async function bootstrap() {
     $('#connection').textContent = 'Hi connection unavailable';
     $('#connection').classList.add('readonly');
   }
+  await scanRadar({ silent: true });
+  clearInterval(radarTimer);
+  radarTimer = setInterval(() => scanRadar({ silent: true }), 120_000);
   route();
 }
 

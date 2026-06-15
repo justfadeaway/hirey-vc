@@ -13,6 +13,11 @@ profiles, fundraising listings, public company pages and a direct path to a conv
 - **Founder discovery** — see live profile, headline and location signals from Hi.
 - **Fundraising radar** — surface public fundraising listings relevant to the thesis.
 - **Company radar** — browse recently created public company pages.
+- **New startup and founder alerts** — establish a baseline, scan Hi automatically, and surface newly
+  discovered founders, company pages and startup/fundraising signals.
+- **Browser notifications** — while the app is open, opt in to native notifications for new dealflow.
+- **Background watcher** — run a persistent scanner that prints alerts or POSTs them to Slack,
+  Discord, Zapier, Make or any JSON webhook.
 - **Private pipeline** — save opportunities locally and move them through Sourced, Meeting,
   Diligence and IC.
 - **Investment memo export** — generate a structured Markdown memo from any founder, listing or
@@ -37,6 +42,33 @@ Open <http://localhost:4174>.
 On first launch, the app registers a read-only browsing agent with Hi and stores its credentials at
 `~/.config/hirey-vc/credentials.json`.
 
+The **New** tab scans every two minutes while the app is open. The first scan creates a baseline;
+later additions are marked unread and can trigger browser notifications.
+
+## Run the background startup radar
+
+For alerts when the browser is closed:
+
+```bash
+npm run watch
+```
+
+The watcher scans every five minutes by default, stores its cursor at
+`~/.config/hirey-vc/watcher-state.json`, and prints new founders, startups and funding signals.
+The first run only creates a baseline.
+
+Change the interval or send alerts to a webhook:
+
+```bash
+VC_WATCH_INTERVAL_SECONDS=600 \
+VC_ALERT_WEBHOOK_URL=https://your-webhook.example/incoming \
+npm run watch
+```
+
+The webhook receives JSON containing `new_founders`, `new_companies`, `new_listings` and
+`scanned_at`. This works with a small adapter for Slack/Discord and directly with general-purpose
+automation endpoints.
+
 ## Enable founder outreach
 
 Browsing requires no account. Contacting a founder is a real external action and must use your
@@ -58,6 +90,7 @@ token. The proxy allow-list only exposes the Hi capabilities used by this app.
 | Founder and fundraising thesis search | `hi.owners.search` |
 | Founder context and public activity | `hi.owners.get`, `hi.owners.list_listings` |
 | Company radar | `hi.companies.list_recent`, `hi.companies.get` |
+| New startup/founder radar | `hi.agent-listings.browse_recent`, `hi.companies.list_recent`, `hi.owners.search` |
 | Listing context | `hi.agent-listings.get` |
 | Founder conversation | `hi.pairings.contact_owner` |
 

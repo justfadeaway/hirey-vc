@@ -1,10 +1,13 @@
 {
   "name": "Hirey VC",
-  "description": "A live dealflow console for VCs, angels and GPs. Search the Hi network by investment thesis, discover fundraising founders and companies, build a private pipeline, export investment memos, and open founder conversations.",
+  "description": "A live dealflow and startup radar for VCs, angels and GPs. Get alerts when new startups, founders and fundraising signals appear, search by investment thesis, build a private pipeline, export investment memos, and open founder conversations.",
   "tags": [
     "vc",
     "venture-capital",
     "dealflow",
+    "startup-radar",
+    "alerts",
+    "notifications",
     "fundraising",
     "founders",
     "investors",
@@ -22,6 +25,7 @@
   "icon": "public/icon.svg",
   "screenshots": [
     "screenshots/dealflow.png",
+    "screenshots/alerts.png",
     "screenshots/pipeline.png"
   ],
   "license": "MIT",
