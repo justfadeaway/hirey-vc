@@ -1,0 +1,31 @@
+{
+  "name": "hirey-vc",
+  "version": "1.0.0",
+  "description": "A live dealflow console for VCs and GPs, powered by the Hirey Hi people graph.",
+  "type": "module",
+  "bin": {
+    "hirey-vc": "server.mjs"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "check": "node --check server.mjs && node --check public/app.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "hirey",
+    "venture-capital",
+    "dealflow",
+    "founders",
+    "fundraising",
+    "investing"
+  ],
+  "license": "MIT",
+  "author": "Lawrence",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justfadeaway/hirey-vc.git"
+  },
+  "homepage": "https://github.com/justfadeaway/hirey-vc#readme"
+}

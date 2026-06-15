@@ -1,0 +1,29 @@
+{
+  "name": "Hirey VC",
+  "description": "A live dealflow console for VCs, angels and GPs. Search the Hi network by investment thesis, discover fundraising founders and companies, build a private pipeline, export investment memos, and open founder conversations.",
+  "tags": [
+    "vc",
+    "venture-capital",
+    "dealflow",
+    "fundraising",
+    "founders",
+    "investors",
+    "gp",
+    "portfolio"
+  ],
+  "capabilities": [
+    "hi.owners",
+    "hi.companies",
+    "hi.agent-listings",
+    "hi.pairings"
+  ],
+  "command": "npm install && npm start",
+  "homepage": "https://github.com/justfadeaway/hirey-vc",
+  "icon": "public/icon.svg",
+  "screenshots": [
+    "screenshots/dealflow.png",
+    "screenshots/pipeline.png"
+  ],
+  "license": "MIT",
+  "author": "Lawrence"
+}

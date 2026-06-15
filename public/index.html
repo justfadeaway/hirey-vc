@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="A live dealflow console for venture investors, powered by Hirey Hi.">
+  <title>Hirey VC · Live dealflow</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/dealflow"><span class="mark">H</span><span>Hirey VC</span></a>
+    <nav>
+      <a href="#/dealflow" data-route="dealflow">Dealflow</a>
+      <a href="#/companies" data-route="companies">Companies</a>
+      <a href="#/pipeline" data-route="pipeline">Pipeline <b id="pipeline-count">0</b></a>
+    </nav>
+    <div class="connection" id="connection">Connecting…</div>
+  </header>
+
+  <main id="app">
+    <div class="loading">Opening the live Hi network…</div>
+  </main>
+
+  <div class="modal-layer" id="modal" hidden>
+    <section class="modal" role="dialog" aria-modal="true">
+      <header><h2 id="modal-title"></h2><button id="modal-close" aria-label="Close">×</button></header>
+      <div id="modal-body"></div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
