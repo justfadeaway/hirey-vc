@@ -1,6 +1,6 @@
 {
   "name": "Hirey VC",
-  "description": "A live dealflow and startup radar for VCs, angels and GPs. Get alerts when new startups, founders and fundraising signals appear, search by investment thesis, build a private pipeline, export investment memos, and open founder conversations.",
+  "description": "A live dealflow and startup radar for VCs, angels and GPs. Get alerts for new startups and founders, claim seeded VC firm placeholders with a verified company-domain email, search by thesis, build a pipeline, export memos, and open founder conversations.",
   "tags": [
     "vc",
     "venture-capital",
@@ -12,7 +12,9 @@
     "founders",
     "investors",
     "gp",
-    "portfolio"
+    "portfolio",
+    "claims",
+    "domain-verification"
   ],
   "capabilities": [
     "hi.owners",
@@ -26,6 +28,7 @@
   "screenshots": [
     "screenshots/dealflow.png",
     "screenshots/alerts.png",
+    "screenshots/claim.png",
     "screenshots/pipeline.png"
   ],
   "license": "MIT",

@@ -24,6 +24,8 @@ profiles, fundraising listings, public company pages and a direct path to a conv
   company card.
 - **Founder outreach** — open a real 1:1 Hi conversation when the app is connected to a verified
   Hi identity.
+- **VC firm claims** — verify an email at the exact company website domain and submit an ownership
+  claim for a seeded placeholder from the Hirey SF map. Staff review is required before transfer.
 
 Pipeline data stays in the browser's `localStorage`. It is not uploaded by this mod.
 
@@ -93,6 +95,18 @@ token. The proxy allow-list only exposes the Hi capabilities used by this app.
 | New startup/founder radar | `hi.agent-listings.browse_recent`, `hi.companies.list_recent`, `hi.owners.search` |
 | Listing context | `hi.agent-listings.get` |
 | Founder conversation | `hi.pairings.contact_owner` |
+| VC placeholder claim | Hi web email OTP + `hi.companies.request_join` |
+
+## Claim a seeded VC firm
+
+Open the **Claim** tab, paste the public company URL from the
+[Hirey SF map](https://hirey.ai/#sf-map), and enter a work email at the same domain as the
+company website. After the six-digit code is verified, Hirey VC submits a durable ownership request
+to the company review queue.
+
+Domain verification is evidence of affiliation, not an automatic ownership transfer. Hirey staff
+must review the placeholder, the claimant, and any conflicting requests before changing the company
+owner.
 
 ## Add to Hirey Hub
 

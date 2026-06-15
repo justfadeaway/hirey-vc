@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { createServer } from 'node:http';
+import { randomBytes } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, extname, join, normalize } from 'node:path';
@@ -13,6 +14,14 @@ const HI_BASE = (process.env.HI_BASE_URL || 'https://hi.hirey.ai').replace(/\/+$
 const PORT = Number(process.env.PORT || 4174);
 const CREDS_DIR = join(homedir(), '.config', 'hirey-vc');
 const CREDS_PATH = join(CREDS_DIR, 'credentials.json');
+const CLAIM_SESSION_TTL_MS = 15 * 60_000;
+const PUBLIC_EMAIL_DOMAINS = new Set([
+  'gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'live.com',
+  'icloud.com', 'me.com', 'yahoo.com', 'proton.me', 'protonmail.com',
+  'aol.com', 'qq.com', '163.com'
+]);
+const claimSessions = new Map();
+const claimBuckets = new Map();
 
 const READ = new Set([
   'hi.owners:search',
@@ -100,10 +109,14 @@ async function loadAgent() {
 }
 
 async function callHi(capability, action, params = {}) {
+  return callHiWithToken(await agent.accessToken(), capability, action, params);
+}
+
+async function callHiWithToken(token, capability, action, params = {}) {
   const response = await fetch(`${HI_BASE}/v1/capabilities/${capability}/call`, {
     method: 'POST',
     headers: {
-      authorization: `Bearer ${await agent.accessToken()}`,
+      authorization: `Bearer ${token}`,
       'content-type': 'application/json'
     },
     body: JSON.stringify({ action, ...params })
@@ -116,6 +129,168 @@ async function callHi(capability, action, params = {}) {
     data = { error: 'bad_upstream_json' };
   }
   return { status: response.status, data };
+}
+
+function clientIp(req) {
+  return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+    || req.socket.remoteAddress
+    || 'unknown';
+}
+
+function rateOk(ip, max = 8, windowMs = 60_000) {
+  const now = Date.now();
+  const attempts = (claimBuckets.get(ip) || []).filter((time) => now - time < windowMs);
+  if (attempts.length >= max) {
+    claimBuckets.set(ip, attempts);
+    return false;
+  }
+  attempts.push(now);
+  claimBuckets.set(ip, attempts);
+  return true;
+}
+
+function originOk(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false;
+  }
+}
+
+function companyPublicId(value) {
+  const match = String(value || '').trim().match(/(?:company\/)?(\d+)(?:[/?#]|$)/);
+  return match ? Number(match[1]) : null;
+}
+
+function websiteDomain(value) {
+  try {
+    return new URL(String(value || '')).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function emailDomain(value) {
+  const parts = String(value || '').trim().toLowerCase().split('@');
+  return parts.length === 2 ? parts[1] : '';
+}
+
+function unwrapCompany(data) {
+  return data?.result?.company || data?.result || data?.company || data || null;
+}
+
+function isPlaceholderCompany(company) {
+  return String(company?.owner_customer_id || '').startsWith('sub_')
+    && /seeded from public sources/i.test(String(company?.content_markdown || ''));
+}
+
+async function authPost(path, payload) {
+  const response = await fetch(`${HI_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const text = await response.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { error: 'bad_upstream_json' };
+  }
+  return { status: response.status, data };
+}
+
+function sweepClaimSessions() {
+  const now = Date.now();
+  for (const [id, session] of claimSessions) {
+    if (session.expiresAt <= now) claimSessions.delete(id);
+  }
+}
+
+async function startClaim(req, res) {
+  if (!originOk(req)) return json(res, 403, { error: 'invalid_origin' });
+  if (!rateOk(clientIp(req))) return json(res, 429, { error: 'rate_limited' });
+  const request = await body(req);
+  const publicId = companyPublicId(request.company);
+  const email = String(request.email || '').trim().toLowerCase();
+  if (!publicId || !email.includes('@')) {
+    return json(res, 422, { error: 'Enter a valid Hirey company URL and work email.' });
+  }
+
+  const companyResult = await callHi('hi.companies', 'get', { company_public_id: String(publicId) });
+  if (companyResult.status !== 200) return json(res, companyResult.status, { error: 'Company not found on Hirey.' });
+  const company = unwrapCompany(companyResult.data);
+  if (!isPlaceholderCompany(company)) {
+    return json(res, 409, { error: 'This company is already claimed or is not an eligible placeholder.' });
+  }
+
+  const domain = websiteDomain(company.website_url);
+  const claimantDomain = emailDomain(email);
+  if (!domain) return json(res, 409, { error: 'This placeholder has no verified company website domain.' });
+  if (PUBLIC_EMAIL_DOMAINS.has(claimantDomain) || claimantDomain !== domain) {
+    return json(res, 422, { error: `Use an email address at @${domain}.` });
+  }
+
+  const started = await authPost('/v1/auth/web/email/start', { email });
+  if (started.status !== 200 || !started.data.flow_id) {
+    return json(res, started.status === 200 ? 400 : started.status, {
+      error: started.data.error || 'Could not send verification code.'
+    });
+  }
+  sweepClaimSessions();
+  const claimId = randomBytes(24).toString('base64url');
+  claimSessions.set(claimId, {
+    flowId: started.data.flow_id,
+    email,
+    domain,
+    companyId: company.id || company.company_id,
+    companyPublicId: publicId,
+    companyName: company.display_name,
+    expiresAt: Date.now() + CLAIM_SESSION_TTL_MS
+  });
+  return json(res, 200, {
+    ok: true,
+    claim_id: claimId,
+    company_name: company.display_name,
+    domain,
+    expires_in: CLAIM_SESSION_TTL_MS / 1000
+  });
+}
+
+async function verifyClaim(req, res) {
+  if (!originOk(req)) return json(res, 403, { error: 'invalid_origin' });
+  const request = await body(req);
+  const claimId = String(request.claim_id || '');
+  const code = String(request.code || '').trim();
+  sweepClaimSessions();
+  const session = claimSessions.get(claimId);
+  if (!session) return json(res, 400, { error: 'Claim session expired. Start again.' });
+  if (!/^\d{6}$/.test(code)) return json(res, 422, { error: 'Enter the 6-digit verification code.' });
+
+  const verified = await authPost('/v1/auth/web/email/verify', { flow_id: session.flowId, code });
+  if (verified.status !== 200 || !verified.data.access_token) {
+    return json(res, verified.status === 200 ? 400 : verified.status, {
+      error: verified.data.error || 'Verification failed.'
+    });
+  }
+  const requested = await callHiWithToken(verified.data.access_token, 'hi.companies', 'request_join', {
+    company_id: session.companyId
+  });
+  if (requested.status !== 200) {
+    return json(res, requested.status, {
+      error: requested.data?.error || requested.data?.result?.error || 'Could not submit claim request.'
+    });
+  }
+  claimSessions.delete(claimId);
+  return json(res, 200, {
+    ok: true,
+    status: 'pending_review',
+    company_name: session.companyName,
+    company_public_id: session.companyPublicId,
+    verified_domain: session.domain
+  });
 }
 
 async function radarSnapshot() {
@@ -173,6 +348,14 @@ const server = createServer(async (req, res) => {
 
     if (url.pathname === '/api/radar') {
       return json(res, 200, await radarSnapshot());
+    }
+
+    if (url.pathname === '/api/claims/start' && req.method === 'POST') {
+      return await startClaim(req, res);
+    }
+
+    if (url.pathname === '/api/claims/verify' && req.method === 'POST') {
+      return await verifyClaim(req, res);
     }
 
     if (url.pathname === '/api/call' && req.method === 'POST') {

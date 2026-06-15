@@ -80,6 +80,17 @@ async function hi(capability, action, params = {}) {
   return data.result || data;
 }
 
+async function postJson(path, payload) {
+  const response = await fetch(api(path), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
+  return data;
+}
+
 const radarIds = (snapshot) => ({
   founders: (snapshot.founders || []).map((item) => item.owner_customer_id || item.owner_public_url),
   listings: (snapshot.listings || []).map((item) => item.listing_id),
@@ -404,6 +415,97 @@ async function viewCompanies() {
   }
 }
 
+function viewClaims() {
+  app.innerHTML = `
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Verified VC identity</div>
+        <h1>Claim your firm<br>on the Hirey map.</h1>
+        <p>If your fund or firm already appears as a seeded placeholder on the SF map, verify an email at the exact company website domain and submit an ownership claim for staff review.</p>
+      </div>
+      <div class="hero-stat"><strong>@</strong><span>Domain verification starts the claim. Ownership transfers only after Hirey staff reviews the placeholder and any conflicts.</span></div>
+    </section>
+    <section class="claim-layout">
+      <form class="claim-card" id="claim-start-form">
+        <div class="claim-step">1</div>
+        <h2>Find the placeholder</h2>
+        <p>Paste its Hirey company URL, for example <code>https://hi.hirey.ai/company/87</code>.</p>
+        <label>Hirey company URL or public ID</label>
+        <input id="claim-company" required placeholder="https://hi.hirey.ai/company/87">
+        <label>Work email</label>
+        <input id="claim-email" required type="email" autocomplete="email" placeholder="you@yourfund.com">
+        <button class="btn btn-acid" id="claim-start-button">Send verification code</button>
+      </form>
+      <section class="claim-card claim-policy">
+        <div class="claim-step">✓</div>
+        <h2>What gets checked</h2>
+        <ul>
+          <li>The company must still be a seeded public-data placeholder.</li>
+          <li>Your email domain must exactly match the company website domain.</li>
+          <li>Public mailbox domains are not accepted.</li>
+          <li>Hirey staff reviews conflicts before transferring ownership.</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://hirey.ai/#sf-map" target="_blank" rel="noopener">Open the SF map</a>
+      </section>
+    </section>
+    <section class="claim-card claim-verify" id="claim-verify-panel" hidden>
+      <div class="claim-step">2</div>
+      <h2>Enter the code</h2>
+      <p id="claim-verify-copy"></p>
+      <form class="search-row" id="claim-verify-form">
+        <input id="claim-code" required inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="6-digit code">
+        <button class="btn btn-acid" id="claim-verify-button">Submit claim</button>
+      </form>
+    </section>`;
+
+  let activeClaimId = null;
+  $('#claim-start-form').onsubmit = async (event) => {
+    event.preventDefault();
+    const button = $('#claim-start-button');
+    button.disabled = true;
+    button.textContent = 'Sending…';
+    try {
+      const result = await postJson('api/claims/start', {
+        company: $('#claim-company').value,
+        email: $('#claim-email').value
+      });
+      activeClaimId = result.claim_id;
+      $('#claim-verify-copy').textContent = `We sent a code to ${$('#claim-email').value.trim()}. Verifying it will submit a claim for ${result.company_name} (@${result.domain}).`;
+      $('#claim-verify-panel').hidden = false;
+      $('#claim-code').focus();
+      toast('Verification code sent');
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Send verification code';
+    }
+  };
+
+  $('#claim-verify-form').onsubmit = async (event) => {
+    event.preventDefault();
+    const button = $('#claim-verify-button');
+    button.disabled = true;
+    button.textContent = 'Submitting…';
+    try {
+      const result = await postJson('api/claims/verify', {
+        claim_id: activeClaimId,
+        code: $('#claim-code').value
+      });
+      $('#claim-verify-panel').innerHTML = `
+        <div class="claim-step">✓</div>
+        <h2>Claim submitted</h2>
+        <p>Your domain was verified and the ownership request for <strong>${esc(result.company_name)}</strong> is now pending Hirey staff review.</p>
+        <a class="btn btn-ghost" href="https://hi.hirey.ai/company/${esc(result.company_public_id)}" target="_blank" rel="noopener">View company page</a>`;
+      toast('Claim submitted for review');
+    } catch (error) {
+      toast(error.message);
+      button.disabled = false;
+      button.textContent = 'Submit claim';
+    }
+  };
+}
+
 function relativeTime(value) {
   const seconds = Math.max(1, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
   if (seconds < 60) return `${seconds}s ago`;
@@ -481,6 +583,7 @@ function route() {
   const page = location.hash.split('/')[1] || 'dealflow';
   document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('active', link.dataset.route === page));
   if (page === 'companies') return viewCompanies();
+  if (page === 'claims') return viewClaims();
   if (page === 'alerts') return viewAlerts();
   if (page === 'pipeline') return viewPipeline();
   return viewDealflow();
@@ -489,6 +592,7 @@ function route() {
 async function bootstrap() {
   savePipeline();
   saveAlerts();
+  route();
   try {
     const health = await fetch(api('api/health')).then((response) => response.json());
     connectedIdentity = health.connected_identity;
@@ -498,10 +602,9 @@ async function bootstrap() {
     $('#connection').textContent = 'Hi connection unavailable';
     $('#connection').classList.add('readonly');
   }
-  await scanRadar({ silent: true });
+  void scanRadar({ silent: true });
   clearInterval(radarTimer);
   radarTimer = setInterval(() => scanRadar({ silent: true }), 120_000);
-  route();
 }
 
 window.addEventListener('hashchange', route);

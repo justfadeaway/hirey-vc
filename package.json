@@ -1,6 +1,6 @@
 {
   "name": "hirey-vc",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A live dealflow console for VCs and GPs, powered by the Hirey Hi people graph.",
   "type": "module",
   "bin": {
@@ -22,7 +22,9 @@
     "alerts",
     "founders",
     "fundraising",
-    "investing"
+    "investing",
+    "claims",
+    "domain-verification"
   ],
   "license": "MIT",
   "author": "Lawrence",

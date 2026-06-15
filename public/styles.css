@@ -122,6 +122,30 @@ h1 { font-size: clamp(42px, 6vw, 76px); line-height: .98; letter-spacing: -.065e
 .company-card h3 { font-size: 19px; margin: 14px 0 5px; }
 .company-card p { color: var(--muted); line-height: 1.5; flex: 1; font-size: 13px; }
 
+.claim-layout { display: grid; grid-template-columns: 1.15fr .85fr; gap: 14px; }
+.claim-card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 20px;
+  padding: 22px; box-shadow: var(--shadow);
+}
+.claim-card h2 { margin: 10px 0 6px; letter-spacing: -.04em; }
+.claim-card p, .claim-card li { color: var(--muted); line-height: 1.55; font-size: 13px; }
+.claim-card label { display: block; margin: 14px 0 6px; font-size: 12px; font-weight: 750; }
+.claim-card input {
+  width: 100%; border: 1px solid var(--line); background: white; border-radius: 12px;
+  padding: 13px 15px; outline: none;
+}
+.claim-card input:focus { border-color: #4d846b; box-shadow: 0 0 0 3px rgba(115,215,176,.2); }
+.claim-card > .btn, .claim-card form > .btn { margin-top: 14px; }
+.claim-step {
+  width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--dark); color: var(--acid); font-weight: 850;
+}
+.claim-policy ul { padding-left: 19px; }
+.claim-policy .btn { display: inline-block; }
+.claim-verify { margin-top: 14px; }
+.claim-verify[hidden] { display: none; }
+.claim-card code { color: var(--ink); }
+
 .pipeline-board { display: grid; grid-template-columns: repeat(4, minmax(220px,1fr)); gap: 12px; overflow-x: auto; padding-bottom: 10px; }
 .stage { background: rgba(255,255,255,.45); border: 1px dashed #bfc4ba; border-radius: 18px; padding: 12px; min-height: 390px; }
 .stage h3 { margin: 2px 4px 12px; display: flex; justify-content: space-between; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; }
@@ -162,6 +186,7 @@ h1 { font-size: clamp(42px, 6vw, 76px); line-height: .98; letter-spacing: -.065e
 @media (max-width: 900px) {
   .grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .hero { grid-template-columns: 1fr; }
+  .claim-layout { grid-template-columns: 1fr; }
   .hero-stat { display: none; }
 }
 @media (max-width: 640px) {
