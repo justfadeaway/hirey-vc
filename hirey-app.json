@@ -23,6 +23,7 @@
     "hi.pairings"
   ],
   "command": "npm install && npm start",
+  "web": "https://hub.hirey.ai/1007/demo",
   "homepage": "https://github.com/justfadeaway/hirey-vc",
   "icon": "public/icon.svg",
   "screenshots": [

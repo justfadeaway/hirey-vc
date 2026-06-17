@@ -44,6 +44,8 @@ Open <http://localhost:4174>.
 On first launch, the app registers a read-only browsing agent with Hi and stores its credentials at
 `~/.config/hirey-vc/credentials.json`.
 
+**Live web app:** <https://hub.hirey.ai/1007/demo>
+
 The **New** tab scans every two minutes while the app is open. The first scan creates a baseline;
 later additions are marked unread and can trigger browser notifications.
 
